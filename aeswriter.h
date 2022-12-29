@@ -6,6 +6,10 @@
 #include <wx/file.h>
 #include <wx/msgdlg.h>
 #include <wx/textdlg.h>
+#include <wx/sizer.h>
+#include <wx/button.h>
+#include <wx/stattext.h>
+#include <wx/strconv.h>
 
 #include <sys/stat.h>
 #include "aes.h"
@@ -22,9 +26,11 @@ public:
 	Window();
 	~Window();
 
+	wxRichTextCtrl *GetTextEditor();
+
 private:
 	wxRichTextCtrl *text;
-	wxFile *file;
+	wxString filename;
 	wxString password;
 
 	void OnOpen( wxCommandEvent &evt );
@@ -32,6 +38,7 @@ private:
 	void OnSaveAs( wxCommandEvent &evt );
 	void OnUndo( wxCommandEvent &evt );
 	void OnRedo( wxCommandEvent &evt );
+	void OnFind( wxCommandEvent &evt );
 
 	// Attempts to open the file at the filename.
 	// Returns 0 on success, -1 if the file could not be opened,
@@ -47,4 +54,26 @@ private:
 
 	// Handles the save as functionality.
 	void SaveFileAs();
+};
+
+enum
+{
+	FIND_DIALOG_ID, FIND_ID, REPLACE_ID, REPLACEALL_ID, FIND_CONTROL_ID, REPLACE_CONTROL_ID
+};
+
+class FindDialog : public wxDialog
+{
+public:
+	FindDialog( Window *parent );	
+
+private:
+	wxStaticText *findlabel, *replacelabel;
+	wxTextCtrl *findctrl, *replacectrl;
+	wxButton *findbtn, *replacebtn, *replaceallbtn;
+	Window *parent;
+
+	void OnFind( wxCommandEvent &evt );
+	void OnReplace( wxCommandEvent &evt );
+	void OnReplaceAll( wxCommandEvent &evt );
+	void OnSize( wxSizeEvent &evt );
 };
