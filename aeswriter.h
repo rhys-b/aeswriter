@@ -43,7 +43,7 @@ private:
 	// Attempts to open the file at the filename.
 	// Returns 0 on success, -1 if the file could not be opened,
 	// and -2 if the user couldn't get the password right.
-	int OpenFile( wxString filename );
+	void OpenFile( wxString filename );
 
 	// Closes the current file, including asking the user
 	// if they want to save if the current file is not saved.

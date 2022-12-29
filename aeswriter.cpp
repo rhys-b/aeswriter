@@ -42,8 +42,8 @@ Window::Window() : wxFrame( nullptr, wxID_ANY, "AES Writer", wxDefaultPosition, 
 
 	if (wxGetApp().argc < 2)
 		this->filename = "";
-	else if (OpenFile(wxGetApp().argv[1]) == -1)
-		wxMessageBox("File Unopenable or Nonexistant");
+	else
+		OpenFile(wxGetApp().argv[1]);
 }
 
 Window::~Window()
@@ -93,7 +93,7 @@ void Window::OnFind( wxCommandEvent &evt )
 	dialog->Show();
 }
 
-int Window::OpenFile( wxString filename )
+void Window::OpenFile( wxString filename )
 {
 	// Get the path of the file from the user.
 	char path[256];
@@ -103,34 +103,43 @@ int Window::OpenFile( wxString filename )
 	struct stat meta;
 	if (stat(path, &meta) == -1)
 	{
-		filename = "";
-		return -1;
+		this->filename = "";
+		wxMessageBox("File Unopenable or Nonexistant");
+		return;
 	}
 
-	unsigned long size = (meta.st_size / 16 + (meta.st_size % 16 != 0)) * 16;
-	std::byte *buffer = new std::byte[size];
+	if (meta.st_size & 0xF)
+	{
+		wxMessageBox("File must have 16-byte multiple size.");
+		return;
+	}
+
+	std::byte *buffer = new std::byte[meta.st_size + 1];
 
 	// Read the data in from the file.
 	FILE *file = fopen(path, "rb");
 	if (file == NULL)
 	{
 		delete[] buffer;
-		file = nullptr;
-		return -1;
+		filename = "";
+		return;
 	}
 	fread(buffer, 1, meta.st_size, file);
 	fclose(file);
 
-	for (unsigned long i = meta.st_size; i < size; i++) buffer[i] = (std::byte)0;
-	std::byte *store = new std::byte[size];
-	memcpy(store, buffer, size);
+	std::byte *store = new std::byte[meta.st_size];
+	memcpy(store, buffer, meta.st_size);
 
 	// Get the password from the user.
 	wxString password = wxGetPasswordFromUser("Enter Password");
 	while (password != "")
 	{
 		// Decrypt the data.
-		edcrypt(0, (uint8_t*)buffer, size, password.utf8_str());
+		edcrypt(0, (uint8_t*)buffer, meta.st_size, password.utf8_str());
+		buffer[meta.st_size] = (std::byte)0;
+		FILE *tmp = fopen("tmp.dat", "wb");
+		fwrite(buffer, 1, meta.st_size, tmp);
+		fclose(tmp);
 
 		wxString string = wxString((const char*)buffer, wxMBConvUTF8());
 		if (string.StartsWith(FINGERPRINT))
@@ -143,7 +152,7 @@ int Window::OpenFile( wxString filename )
 		else
 		{
 			password = wxGetPasswordFromUser("Incorrect Password");
-			memcpy(buffer, store, size);
+			memcpy(buffer, store, meta.st_size);
 		}
 	}
 
@@ -153,11 +162,11 @@ int Window::OpenFile( wxString filename )
 	if (this->password == "")
 	{
 		this->filename = "";
-		return -2;
+		return;
 	}
 
 	text->DiscardEdits();
-	return 0;
+	return;
 }
 
 void Window::CloseFile()
@@ -232,13 +241,13 @@ void Window::SaveFileAs()
 		password = password1;
 
 		// Open a file in read/write mode or create it if it does not exist.
-		if (!wxFile::Exists(dialog.GetFilename()))
+		if (!wxFile::Exists(dialog.GetPath()))
 		{
-			wxFile tmp(dialog.GetFilename(), wxFile::write);
+			wxFile tmp(dialog.GetPath(), wxFile::write);
 			// tmp gets closed when its destructor gets called here.
 		}
 
-		filename = dialog.GetFilename();
+		filename = dialog.GetPath();
 		SaveFile();
 	}
 }
@@ -293,7 +302,6 @@ FindDialog::FindDialog( Window *parent )
 	Bind(wxEVT_TEXT_ENTER, &FindDialog::OnReplace, this, REPLACE_CONTROL_ID);
 }
 
-#include <iostream>
 void FindDialog::OnSize( wxSizeEvent &evt )
 {
 	int width, height;
