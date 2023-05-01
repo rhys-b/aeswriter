@@ -137,9 +137,6 @@ void Window::OpenFile( wxString filename )
 		// Decrypt the data.
 		edcrypt(0, (uint8_t*)buffer, meta.st_size, password.utf8_str());
 		buffer[meta.st_size] = (std::byte)0;
-		FILE *tmp = fopen("tmp.dat", "wb");
-		fwrite(buffer, 1, meta.st_size, tmp);
-		fclose(tmp);
 
 		wxString string = wxString((const char*)buffer, wxMBConvUTF8());
 		if (string.StartsWith(FINGERPRINT))
